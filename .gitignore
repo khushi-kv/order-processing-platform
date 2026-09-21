@@ -1,0 +1,27 @@
+﻿# === Java / Maven ===
+target/
+*.class
+*.jar
+*.war
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# === Spring Boot ===
+*.log
+application-local.properties
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Docker ===
+docker-data/
+
+# === Environment ===
+.env
