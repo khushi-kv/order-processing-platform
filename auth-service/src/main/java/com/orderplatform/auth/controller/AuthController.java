@@ -1,5 +1,6 @@
 package com.orderplatform.auth.controller;
 
+import com.orderplatform.auth.dto.LoginRequest;
 import com.orderplatform.auth.dto.RegisterRequest;
 import com.orderplatform.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -19,6 +20,12 @@ public class AuthController {
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
         String response = authService.registerUser(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
+        String token = authService.login(request);
+        return ResponseEntity.ok(token);
     }
     
     // A simple endpoint to test if our service is running

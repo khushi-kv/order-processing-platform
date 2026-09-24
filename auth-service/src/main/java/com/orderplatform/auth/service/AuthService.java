@@ -1,5 +1,6 @@
 package com.orderplatform.auth.service;
 
+import com.orderplatform.auth.dto.LoginRequest;
 import com.orderplatform.auth.dto.RegisterRequest;
 import com.orderplatform.auth.entity.AppUser;
 import com.orderplatform.auth.repository.UserRepository;
@@ -13,6 +14,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public String registerUser(RegisterRequest request) {
         // 1. Check if user already exists
@@ -33,5 +35,19 @@ public class AuthService {
         userRepository.save(newUser);
 
         return "User registered successfully!";
+    }
+
+    public String login(LoginRequest request) {
+        // 1. Find user by email
+        AppUser user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+
+        // 2. Verify password matches
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        // 3. Generate and return JWT
+        return jwtService.generateToken(user.getEmail(), user.getRole());
     }
 }
