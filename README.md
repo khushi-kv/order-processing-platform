@@ -1,72 +1,58 @@
-# Event-Driven Order Processing Platform
+# Order Processing Platform
 
-A production-grade **Spring Boot Microservices Platform** built with **Java 17**, featuring **Apache Kafka** event streaming, **Redis** caching, **Spring Cloud Gateway**, and **Resilience4j** circuit breakers.
+A Spring Boot microservices backend where a customer places an order and the order is confirmed or
+cancelled through a Kafka-driven choreography saga. Kong is the only entry point; services talk to
+each other only through Kafka events.
 
-## 🏗️ Architecture (Current Progress)
+> Work in progress: project structure and local infrastructure are set up; no business logic yet.
+> See [PROJECT.md](PROJECT.md) for the design, conventions and progress.
 
-This repository is a **mono-repo** that currently contains the foundational infrastructure and the first core microservice.
+## Stack
 
-### 1. Infrastructure
-* **PostgreSQL**: Relational storage (running on port `5432`).
-* **Redis**: Distributed caching (running on port `6379`).
-* **Kafka & Zookeeper**: Message broker for asynchronous event-driven communication (running on port `9092`).
+Java 25 · Spring Boot 4.1 · Spring Security + JWT · Spring Data JPA · Flyway · Spring Kafka ·
+PostgreSQL 18 · Apache Kafka 4.4 (KRaft) · Kong 3.9 (DB-less) · JUnit 5 · Mockito · JaCoCo ·
+SonarQube · Docker Compose
 
-### 2. Auth Service (`auth-service`)
-A fully stateless, highly secure microservice responsible for user identity and token generation.
-* **Tech**: Spring Boot, Spring Security, Spring Data JPA, BCrypt, JJWT.
-* **Security**: Enforces strict password complexity rules on registration, securely verifies credentials against BCrypt hashes, and issues cryptographically signed JWT tokens for downstream authorization.
-* **Secrets Management**: Implements `.env` variable injection to securely manage the JWT Secret Key out of source control.
+## Structure
 
----
+```
+order-processing-platform/
+├── docker-compose.yml        Postgres, Kafka (KRaft), Kafka UI, Kong, SonarQube
+├── infra/
+│   ├── kong/kong.yml         Gateway routes (DB-less)
+│   └── postgres/             One database per service
+├── user-service/             8081 · user_db
+├── product-service/          8082 · product_db
+├── order-service/            8083 · order_db
+├── payment-service/          8084 · payment_db
+└── notification-service/     8085 · no database
+```
 
-## 🚀 Getting Started
+Each service is its own Maven project with the same package layout under
+`com.orderplatform.<service>`: `controller`, `service`, `repository`, `dto`, `entity`, `event`,
+`kafka`, `exception`, `config` (only the packages the service needs), and Flyway migrations in
+`src/main/resources/db/migration`.
 
-### 1. Start the Infrastructure
-Make sure you have Docker installed, then run the background services:
+## Run locally
+
+Prerequisites: JDK 25, Docker Desktop.
+
 ```bash
-docker-compose up -d
+# Infrastructure: Postgres, Kafka, Kafka UI, Kong
+docker compose up -d
+
+# A service (from its folder)
+cd user-service && ./mvnw spring-boot:run
 ```
 
-### 2. Configure the Auth Service Environment
-Create a `.env` file at the root of the `auth-service` folder (`auth-service/.env`) and add a secure secret key:
-```env
-JWT_SECRET=your_super_secret_64_character_hex_string_here
-```
+| URL | What |
+|---|---|
+| http://localhost:8000 | Kong gateway (all API calls go here) |
+| http://localhost:8090 | Kafka UI |
+| http://localhost:9000 | SonarQube (`docker compose --profile sonar up -d sonarqube`) |
 
-### 3. Run the Auth Service
-Navigate to the `auth-service` directory and boot the application (runs on port `8081`):
+## Build and test
+
 ```bash
-cd auth-service
-./mvnw spring-boot:run
+cd <service> && ./mvnw verify    # tests + JaCoCo report in target/site/jacoco
 ```
-
----
-
-## 📖 API Documentation
-
-### Auth Service (`localhost:8081`)
-
-#### 1. Register a new user
-```http
-POST /auth/register
-Content-Type: application/json
-
-{
-    "email": "user@example.com",
-    "password": "StrongPassword123"
-}
-```
-
-#### 2. Login to get JWT Token
-```http
-POST /auth/login
-Content-Type: application/json
-
-{
-    "email": "user@example.com",
-    "password": "StrongPassword123"
-}
-```
-
----
-*Stay tuned: Order Service and Inventory Service are currently in development!*
