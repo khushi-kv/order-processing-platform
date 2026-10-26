@@ -24,7 +24,7 @@ and Payment succeeds; any failure **cancels** it and releases stock. Built in 10
 | Auth | Spring Security + JWT (HS256) | same |
 | Migrations | Flyway, `ddl-auto: validate` | Flyway |
 | Quality | JUnit 5, Mockito, Testcontainers, JaCoCo, SonarQube (80% new-code gate) | same |
-| Errors | To decide: inventory API format or RFC 9457 `ProblemDetail` | same format as inventory API |
+| Errors | Inventory API format: `timestamp`, `status`, `error`, `message`, `details[]` | same format as inventory API |
 
 ## 3. Services
 
@@ -53,8 +53,17 @@ needs (User has no Kafka; Notification has no database or HTTP API).
 - Registration always creates `CUSTOMER`. The first admin is seeded from `ADMIN_EMAIL` and
   `ADMIN_PASSWORD`.
 
-**Errors.** One `@RestControllerAdvice` per service and the same JSON error format everywhere. Bean
-Validation on requests. No stack traces in responses.
+**Errors.** One `@RestControllerAdvice` per service, every error (security ones included) in the
+inventory API format:
+
+```json
+{ "timestamp": "...", "status": 400, "error": "Bad Request", "message": "Validation failed",
+  "details": ["email: must be a well-formed email address"] }
+```
+
+Statuses: 400 (validation, malformed JSON, bad parameter), 401 (missing/invalid token, bad login),
+403 (wrong role), 404, 405, 409 (duplicate), 415, 500 (generic message; details only logged).
+No stack traces or SQL in responses.
 
 **Events.**
 - Every event carries `eventId`, `orderId`, `correlationId`, `occurredAt` plus its payload.
