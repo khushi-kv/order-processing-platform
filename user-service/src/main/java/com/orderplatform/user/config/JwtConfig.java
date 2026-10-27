@@ -3,7 +3,11 @@ package com.orderplatform.user.config;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import javax.crypto.SecretKey;
@@ -22,5 +26,15 @@ public class JwtConfig {
     @Bean
     public JwtEncoder jwtEncoder(SecretKey jwtSigningKey) {
         return new NimbusJwtEncoder(new ImmutableSecret<>(jwtSigningKey));
+    }
+
+    /** Checks the signature, the expiry and that the issuer is ours; anything else is rejected with 401. */
+    @Bean
+    public JwtDecoder jwtDecoder(SecretKey jwtSigningKey, JwtProperties properties) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSigningKey)
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(properties.issuer()));
+        return decoder;
     }
 }
