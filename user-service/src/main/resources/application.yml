@@ -24,6 +24,10 @@ app:
     secret: ${JWT_SECRET}
     issuer: order-platform
     expiration: 1h
+  admin:
+    name: Admin
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}
 
 management:
   endpoints:
