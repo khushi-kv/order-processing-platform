@@ -18,6 +18,13 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+app:
+  jwt:
+    # No default: the service refuses to start without a secret
+    secret: ${JWT_SECRET}
+    issuer: order-platform
+    expiration: 1h
+
 management:
   endpoints:
     web:
