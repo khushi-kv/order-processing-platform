@@ -5,6 +5,7 @@ import com.orderplatform.user.dto.LoginResponse;
 import com.orderplatform.user.dto.RegisterRequest;
 import com.orderplatform.user.dto.UserResponse;
 import com.orderplatform.user.service.AuthService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
+@SecurityRequirements // open endpoints: no lock icon in Swagger
 @RequiredArgsConstructor
 public class AuthController {
 
