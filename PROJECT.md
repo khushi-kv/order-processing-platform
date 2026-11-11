@@ -4,14 +4,15 @@ The working reference for this project: what is being built, the rules every ser
 where things stand. The source plan is *Order Processing Platform: Final Plan* (24 Oct 2026); this
 file records where the build deliberately differs from it.
 
-**Current state:** architecture only (service skeletons + local infrastructure). Sections 3 to 5
-describe the target design; features are built day by day (see section 7).
+**Current state:** infrastructure, 5 service skeletons and the User Service (register, login, JWT,
+`/api/users/me`, admin seed, Swagger) are done. Next is the auth hardening in section 8, then
+Day 2. Sections 3 to 5 describe the target design; features are built day by day (section 7).
 
 ## 1. Goal
 
 A customer places an order through Kong. The order is **confirmed** only after Product reserves stock
-and Payment succeeds; any failure **cancels** it and releases stock. Built in 10 days (26 Oct to
-4 Nov 2026): 8 build days, 1 deployment day, 1 docs and interview-prep day.
+and Payment succeeds; any failure **cancels** it and releases stock. Planned as 10 days: 8 build
+days, 1 deployment day, 1 docs and interview-prep day.
 
 ## 2. Stack
 
@@ -24,7 +25,7 @@ and Payment succeeds; any failure **cancels** it and releases stock. Built in 10
 | Auth | Spring Security + JWT (HS256) | same |
 | Migrations | Flyway, `ddl-auto: validate` | Flyway |
 | Quality | JUnit 5, Mockito, Testcontainers, JaCoCo, SonarQube (80% new-code gate) | same |
-| Errors | To decide: inventory API format or RFC 9457 `ProblemDetail` | same format as inventory API |
+| Errors | Inventory API format: `timestamp`, `status`, `error`, `message`, `details[]` | same format as inventory API |
 
 ## 3. Services
 
@@ -53,8 +54,17 @@ needs (User has no Kafka; Notification has no database or HTTP API).
 - Registration always creates `CUSTOMER`. The first admin is seeded from `ADMIN_EMAIL` and
   `ADMIN_PASSWORD`.
 
-**Errors.** One `@RestControllerAdvice` per service and the same JSON error format everywhere. Bean
-Validation on requests. No stack traces in responses.
+**Errors.** One `@RestControllerAdvice` per service, every error (security ones included) in the
+inventory API format:
+
+```json
+{ "timestamp": "...", "status": 400, "error": "Bad Request", "message": "Validation failed",
+  "details": ["email: must be a well-formed email address"] }
+```
+
+Statuses: 400 (validation, malformed JSON, bad parameter), 401 (missing/invalid token, bad login),
+403 (wrong role), 404, 405, 409 (duplicate), 415, 500 (generic message; details only logged).
+No stack traces or SQL in responses.
 
 **Events.**
 - Every event carries `eventId`, `orderId`, `correlationId`, `occurredAt` plus its payload.
@@ -99,18 +109,37 @@ logs. Actuator health runs on every service.
 
 | Day | Scope | Status |
 |---|---|---|
-| 1 | Setup: infra, 5 skeletons, JaCoCo/Sonar, User Service with JWT | 🟡 infra + skeletons done; User Service and Sonar gate pending |
+| 1 | Setup: infra, 5 skeletons, JaCoCo/Sonar, User Service with JWT | 🟡 all done except the PR to `main`; Sonar: 5 projects scanned, `order-platform` gate is the default, User Service 91.6% coverage |
+| 1b | Auth hardening, section 8 (added, not in the PDF) | ⬜ |
 | 2 | Product: CRUD, stock, `@Version`, `stock_reservations` | ⬜ |
 | 3 | Order: place/view/cancel, `order-created`; Product reserves | ⬜ |
 | 4 | Payment + success path | ⬜ |
 | 5 | Failure paths, stock release, stuck-order timeout | ⬜ |
 | 6 | Idempotency, retries, DLTs; Notification | ⬜ |
 | 7 | Kong: JWT, rate limit, CORS, correlation ID | ⬜ |
-| 8 | Testcontainers saga tests, Swagger, Postman | ⬜ |
+| 8 | Testcontainers saga tests, Swagger (User Service done), Postman | ⬜ |
 | 9 | Deployment: Dockerfiles, prod compose, VM, GitHub Actions | ⬜ |
 | 10 | README, demo video, interview prep | ⬜ |
 
-## 8. Out of scope (week 2)
+## 8. Auth hardening (added, not in the PDF)
+
+Already done: BCrypt (8–72 characters), Spring Resource Server with the algorithm pinned and the
+issuer checked, a startup check on the secret, stateless sessions, no role in registration, the same
+error for an unknown email and a wrong password, `@PreAuthorize` in each service, Swagger with JWT.
+
+| # | Item | Estimate | Status |
+|---|---|---|---|
+| 1 | Login timing fix: run BCrypt against a dummy hash when the email is unknown | 15 min | ⬜ |
+| 2 | Refresh tokens: 15-min access token, hashed refresh token in the database, replaced on each use, reuse detection, cleanup of expired rows | 2 hrs | ⬜ |
+| 3 | Logout: delete the refresh token | 20 min | ⬜ |
+| 4 | Account lockout: 5 failures lock the account for 15 min | 45 min | ⬜ |
+| 5 | README, Sonar scan, Swagger check | 20 min | ⬜ |
+
+Total about 3.5 hrs. Not planned (future work, README only): RS256, password reset, change
+password, cutting off sessions after a password or role change, email verification, MFA,
+breach-password check, audit log, key rotation, OAuth login.
+
+## 9. Out of scope (week 2)
 
 Outbox pattern, refunds, shipping states, Redis cache, Prometheus + Grafana, Zipkin, real payment
 gateway.

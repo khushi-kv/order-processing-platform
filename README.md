@@ -4,7 +4,7 @@ A Spring Boot microservices backend where a customer places an order and the ord
 cancelled through a Kafka-driven choreography saga. Kong is the only entry point; services talk to
 each other only through Kafka events.
 
-> Work in progress: project structure and local infrastructure are set up; no business logic yet.
+> Work in progress: local infrastructure, the 5 service skeletons and the User Service are done.
 > See [PROJECT.md](PROJECT.md) for the design, conventions and progress.
 
 ## Stack
@@ -51,8 +51,37 @@ cd user-service && ./mvnw spring-boot:run
 | http://localhost:8090 | Kafka UI |
 | http://localhost:9000 | SonarQube (`docker compose --profile sonar up -d sonarqube`) |
 
+Each service reads its secrets from a git-ignored `.env` in its own folder; copy `.env.example`
+and fill in real values.
+
+## User Service (8081)
+
+Registration, login and profiles. Login returns an HS256 JWT (1 hour) with the claims `iss`, `sub`
+(user id), `email` and `role`. Registration always creates a `CUSTOMER`; the first `ADMIN` is
+seeded at startup from `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
+
+| Method | Path | Auth | What |
+|---|---|---|---|
+| POST | `/api/auth/register` | none | Create a customer account (201) |
+| POST | `/api/auth/login` | none | Returns `accessToken`, `tokenType`, `expiresIn` |
+| GET | `/api/users/me` | Bearer | Current user's profile |
+| PUT | `/api/users/me` | Bearer | Update the current user's name |
+
+Swagger UI: http://localhost:8081/swagger-ui.html. Log in, then paste the `accessToken` into
+**Authorize** to call the protected endpoints.
+
+Required in `user-service/.env`: `JWT_SECRET` (at least 32 characters; the service will not start
+without it), plus `ADMIN_EMAIL` and `ADMIN_PASSWORD` to seed the admin.
+
 ## Build and test
 
 ```bash
 cd <service> && ./mvnw verify    # tests + JaCoCo report in target/site/jacoco
+```
+
+SonarQube analysis (quality gate `order-platform`: 80% coverage on new code, no new issues). Put a
+global analysis token in the root `.env` as `SONAR_TOKEN`, then from a service folder:
+
+```bash
+./mvnw clean verify sonar:sonar -Dsonar.token=$SONAR_TOKEN
 ```
