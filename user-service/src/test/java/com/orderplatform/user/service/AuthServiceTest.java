@@ -23,6 +23,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -94,11 +95,15 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginRejectsUnknownEmailWithTheSameMessage() {
+    void loginRejectsUnknownEmailWithTheSameMessageAfterCheckingTheDummyHash() {
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$dummy");
+        AuthService service = new AuthService(userRepository, passwordEncoder, jwtService);
         when(userRepository.findByEmail("nobody@test.com")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.login(new LoginRequest("nobody@test.com", "Secret123")))
+        assertThatThrownBy(() -> service.login(new LoginRequest("nobody@test.com", "Secret123")))
                 .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid email or password");
+        // The BCrypt check still runs, so an unknown email takes as long as a wrong password
+        verify(passwordEncoder).matches("Secret123", "$2a$10$dummy");
     }
 }
