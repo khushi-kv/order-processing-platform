@@ -2,6 +2,7 @@ package com.orderplatform.user.controller;
 
 import com.orderplatform.user.dto.LoginRequest;
 import com.orderplatform.user.dto.LoginResponse;
+import com.orderplatform.user.dto.RefreshRequest;
 import com.orderplatform.user.dto.RegisterRequest;
 import com.orderplatform.user.dto.UserResponse;
 import com.orderplatform.user.service.AuthService;
@@ -32,5 +33,10 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public LoginResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return authService.refresh(request);
     }
 }

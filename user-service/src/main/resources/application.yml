@@ -23,7 +23,10 @@ app:
     # No default: the service refuses to start without a secret
     secret: ${JWT_SECRET}
     issuer: order-platform
-    expiration: 1h
+    # Short-lived; clients get a new one from /api/auth/refresh
+    expiration: 15m
+  refresh-token:
+    expiration: 7d
   admin:
     name: Admin
     email: ${ADMIN_EMAIL:}

@@ -3,6 +3,7 @@ package com.orderplatform.user.service;
 import com.orderplatform.user.TestUsers;
 import com.orderplatform.user.dto.LoginRequest;
 import com.orderplatform.user.dto.LoginResponse;
+import com.orderplatform.user.dto.RefreshRequest;
 import com.orderplatform.user.dto.RegisterRequest;
 import com.orderplatform.user.dto.UserResponse;
 import com.orderplatform.user.entity.Role;
@@ -37,6 +38,8 @@ class AuthServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private JwtService jwtService;
+    @Mock
+    private RefreshTokenService refreshTokenService;
 
     @InjectMocks
     private AuthService authService;
@@ -73,13 +76,15 @@ class AuthServiceTest {
         when(userRepository.findByEmail("khushi@test.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("Secret123", user.getPasswordHash())).thenReturn(true);
         when(jwtService.issueToken(user)).thenReturn("signed.jwt.token");
-        when(jwtService.expiresInSeconds()).thenReturn(3600L);
+        when(refreshTokenService.issue(user)).thenReturn("refresh-token");
+        when(jwtService.expiresInSeconds()).thenReturn(900L);
 
         LoginResponse response = authService.login(new LoginRequest("KHUSHI@test.com", "Secret123"));
 
         assertThat(response.accessToken()).isEqualTo("signed.jwt.token");
+        assertThat(response.refreshToken()).isEqualTo("refresh-token");
         assertThat(response.tokenType()).isEqualTo("Bearer");
-        assertThat(response.expiresIn()).isEqualTo(3600L);
+        assertThat(response.expiresIn()).isEqualTo(900L);
     }
 
     @Test
@@ -92,12 +97,13 @@ class AuthServiceTest {
                 .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid email or password");
         verify(jwtService, never()).issueToken(any());
+        verify(refreshTokenService, never()).issue(any());
     }
 
     @Test
     void loginRejectsUnknownEmailWithTheSameMessageAfterCheckingTheDummyHash() {
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$dummy");
-        AuthService service = new AuthService(userRepository, passwordEncoder, jwtService);
+        AuthService service = new AuthService(userRepository, passwordEncoder, jwtService, refreshTokenService);
         when(userRepository.findByEmail("nobody@test.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.login(new LoginRequest("nobody@test.com", "Secret123")))
@@ -105,5 +111,18 @@ class AuthServiceTest {
                 .hasMessage("Invalid email or password");
         // The BCrypt check still runs, so an unknown email takes as long as a wrong password
         verify(passwordEncoder).matches("Secret123", "$2a$10$dummy");
+    }
+
+    @Test
+    void refreshRotatesTheTokenAndReturnsANewPair() {
+        User user = TestUsers.customer(1L);
+        when(refreshTokenService.rotate("old-refresh")).thenReturn(user);
+        when(jwtService.issueToken(user)).thenReturn("new.jwt.token");
+        when(refreshTokenService.issue(user)).thenReturn("new-refresh");
+
+        LoginResponse response = authService.refresh(new RefreshRequest("old-refresh"));
+
+        assertThat(response.accessToken()).isEqualTo("new.jwt.token");
+        assertThat(response.refreshToken()).isEqualTo("new-refresh");
     }
 }

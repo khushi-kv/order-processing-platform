@@ -7,6 +7,7 @@ import com.orderplatform.user.dto.UserResponse;
 import com.orderplatform.user.entity.Role;
 import com.orderplatform.user.exception.DuplicateResourceException;
 import com.orderplatform.user.exception.InvalidCredentialsException;
+import com.orderplatform.user.exception.InvalidRefreshTokenException;
 import com.orderplatform.user.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,7 @@ class AuthControllerTest {
 
     private static final String REGISTER_URL = "/api/auth/register";
     private static final String LOGIN_URL = "/api/auth/login";
+    private static final String REFRESH_URL = "/api/auth/refresh";
     private static final String VALID_REGISTER = """
             {"name":"Khushi","email":"khushi@test.com","password":"Secret123"}""";
 
@@ -101,13 +103,14 @@ class AuthControllerTest {
 
     @Test
     void loginIsOpenAndReturnsTheToken() throws Exception {
-        when(authService.login(any())).thenReturn(LoginResponse.bearer("signed.jwt.token", 3600));
+        when(authService.login(any())).thenReturn(LoginResponse.bearer("signed.jwt.token", "refresh-token", 900));
 
         mockMvc.perform(post(LOGIN_URL).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"khushi@test.com","password":"Secret123"}"""))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").value("signed.jwt.token"));
+                .andExpect(jsonPath("$.accessToken").value("signed.jwt.token"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token"));
     }
 
     @Test
@@ -119,5 +122,28 @@ class AuthControllerTest {
                                 {"email":"khushi@test.com","password":"Wrong123"}"""))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    void refreshIsOpenEvenWhenAnExpiredAccessTokenIsSent() throws Exception {
+        when(authService.refresh(any())).thenReturn(LoginResponse.bearer("new.jwt.token", "new-refresh", 900));
+
+        mockMvc.perform(post(REFRESH_URL).contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer expired.or.invalid.token")
+                        .content("""
+                                {"refreshToken":"old-refresh"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshToken").value("new-refresh"));
+    }
+
+    @Test
+    void refreshReturns401ForAnInvalidToken() throws Exception {
+        when(authService.refresh(any())).thenThrow(new InvalidRefreshTokenException());
+
+        mockMvc.perform(post(REFRESH_URL).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"stolen-or-expired"}"""))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid or expired refresh token"));
     }
 }
