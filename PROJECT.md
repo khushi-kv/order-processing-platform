@@ -5,8 +5,9 @@ where things stand. The source plan is *Order Processing Platform: Final Plan* (
 file records where the build deliberately differs from it.
 
 **Current state:** infrastructure, 5 service skeletons and the User Service (register, login, JWT,
-`/api/users/me`, admin seed, Swagger) are done. Next is the auth hardening in section 8, then
-Day 2. Sections 3 to 5 describe the target design; features are built day by day (section 7).
+`/api/users/me`, admin seed, Swagger) are done (Day 1). Next is Day 2, Product Service. The auth
+hardening in section 8 moved to week 2. Target finish: **Tue 15 Dec 2026**, working Mon–Thu,
+3–4 hrs a day (section 7). Sections 3 to 5 describe the target design.
 
 ## 1. Goal
 
@@ -107,21 +108,32 @@ logs. Actuator health runs on every service.
 
 ## 7. Progress
 
-| Day | Scope | Status |
-|---|---|---|
-| 1 | Setup: infra, 5 skeletons, JaCoCo/Sonar, User Service with JWT | 🟡 all done except the PR to `main`; Sonar: 5 projects scanned, `order-platform` gate is the default, User Service 91.6% coverage |
-| 1b | Auth hardening, section 8 (added, not in the PDF) | ⬜ |
-| 2 | Product: CRUD, stock, `@Version`, `stock_reservations` | ⬜ |
-| 3 | Order: place/view/cancel, `order-created`; Product reserves | ⬜ |
-| 4 | Payment + success path | ⬜ |
-| 5 | Failure paths, stock release, stuck-order timeout | ⬜ |
-| 6 | Idempotency, retries, DLTs; Notification | ⬜ |
-| 7 | Kong: JWT, rate limit, CORS, correlation ID | ⬜ |
-| 8 | Testcontainers saga tests, Swagger (User Service done), Postman | ⬜ |
-| 9 | Deployment: Dockerfiles, prod compose, VM, GitHub Actions | ⬜ |
-| 10 | README, demo video, interview prep | ⬜ |
+Day 1 took about 4 working days (25–28 Oct, PR merged 11 Nov), so the PDF's 26 Oct – 4 Nov dates
+are replaced by the schedule below: Mon–Thu only, 3–4 focused hours a day, finishing 15 Dec.
 
-## 8. Auth hardening (added, not in the PDF)
+| Day | Scope | Dates | Done when | Status |
+|---|---|---|---|---|
+| 1 | Setup: infra, 5 skeletons, JaCoCo/Sonar, User Service with JWT | 25 Oct – 11 Nov | Login returns a JWT | ✅ PR #1 merged; Sonar: 5 projects, `order-platform` gate, User Service 91.6% |
+| 2 | Product: CRUD, stock, `@Version`, `stock_reservations` | 23–24 Nov | Concurrent stock test passes | ⬜ |
+| 3 | Order: place/view/cancel, `order-created`; Product reserves | 25–26 Nov | `stock-reserved` visible in Kafka UI | ⬜ |
+| 4 | Payment (mock behind a `PaymentGateway` interface) + success path | 30 Nov – 1 Dec | Order reaches `CONFIRMED` | ⬜ |
+| 5 | Failure paths, stock release, stuck-order timeout | 2–3 Dec | Failed payment restores stock | ⬜ |
+| 6 | Idempotency, retries, DLTs; Notification (log only) | 7 Dec | Duplicate skipped, poison message in DLT | ⬜ |
+| 7 | Kong: JWT, rate limit, CORS, correlation ID | 8 Dec | No token → 401, spam → 429 | ⬜ |
+| 8 | 3 Testcontainers saga tests, Postman, Sonar on all 5 | 9–10 Dec | `mvn verify` green everywhere | ⬜ |
+| 9 | Deployment: Dockerfiles, prod compose, VM, GitHub Actions | 14 Dec | Order flow works on the public URL | ⬜ |
+| 10 | README with diagrams | 15 Dec | Fresh clone runs from README | ⬜ |
+
+**Checkpoints:** Thu 26 Nov Order publishes events; Thu 3 Dec both failure paths work. If one is
+missed, cut in this order: Postman polish, saga tests down to 2, then one Friday session.
+
+**Cuts to fit the dates:** auth hardening (section 8) moves to week 2; Notification only logs (no
+Mailtrap); Sonar runs at milestones (after Days 4, 7, 9), not daily; no domain/HTTPS; no demo video.
+
+**How each step is built:** plan → logic → what's missing → what can be improved, agreed before
+any code; then one small step is coded, checked and committed on its own.
+
+## 8. Auth hardening (added, not in the PDF; moved to week 2)
 
 Already done: BCrypt (8–72 characters), Spring Resource Server with the algorithm pinned and the
 issuer checked, a startup check on the secret, stateless sessions, no role in registration, the same
@@ -141,5 +153,6 @@ breach-password check, audit log, key rotation, OAuth login.
 
 ## 9. Out of scope (week 2)
 
-Outbox pattern, refunds, shipping states, Redis cache, Prometheus + Grafana, Zipkin, real payment
-gateway.
+Outbox pattern, refunds, shipping states, Redis cache, Prometheus + Grafana, Zipkin, auth hardening
+(section 8), Mailtrap email, demo video, real payment gateway (Stripe test mode as a second
+`PaymentGateway` implementation, using `pm_card_visa` / `pm_card_chargeDeclined`).

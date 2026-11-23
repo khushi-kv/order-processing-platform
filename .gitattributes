@@ -1,0 +1,11 @@
+# Same line endings on every OS: LF in the repo and on disk, so files work in Linux containers,
+# on the deployment VM and in CI. Windows scripts keep CRLF.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files are never converted
+*.jar binary
+*.png binary
+*.jpg binary
+*.pdf binary
